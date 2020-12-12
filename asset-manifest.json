@@ -1,0 +1,22 @@
+{
+  "files": {
+    "main.css": "/aoc-dash-viewer/static/css/main.1100813c.chunk.css",
+    "main.js": "/aoc-dash-viewer/static/js/main.05a950b4.chunk.js",
+    "main.js.map": "/aoc-dash-viewer/static/js/main.05a950b4.chunk.js.map",
+    "runtime-main.js": "/aoc-dash-viewer/static/js/runtime-main.d5bd0b16.js",
+    "runtime-main.js.map": "/aoc-dash-viewer/static/js/runtime-main.d5bd0b16.js.map",
+    "static/js/2.fad91ec0.chunk.js": "/aoc-dash-viewer/static/js/2.fad91ec0.chunk.js",
+    "static/js/2.fad91ec0.chunk.js.map": "/aoc-dash-viewer/static/js/2.fad91ec0.chunk.js.map",
+    "index.html": "/aoc-dash-viewer/index.html",
+    "precache-manifest.6282d3457a30496fb8bfb221ccbc55fe.js": "/aoc-dash-viewer/precache-manifest.6282d3457a30496fb8bfb221ccbc55fe.js",
+    "service-worker.js": "/aoc-dash-viewer/service-worker.js",
+    "static/css/main.1100813c.chunk.css.map": "/aoc-dash-viewer/static/css/main.1100813c.chunk.css.map",
+    "static/js/2.fad91ec0.chunk.js.LICENSE.txt": "/aoc-dash-viewer/static/js/2.fad91ec0.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.d5bd0b16.js",
+    "static/js/2.fad91ec0.chunk.js",
+    "static/css/main.1100813c.chunk.css",
+    "static/js/main.05a950b4.chunk.js"
+  ]
+}
