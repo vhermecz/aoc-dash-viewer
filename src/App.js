@@ -5,6 +5,8 @@ import {Box, Grid, Table, TextField, TableRow, TableCell} from '@material-ui/cor
 import { makeStyles } from '@material-ui/core/styles';
 import fetch from 'node-fetch';
 import {demodata} from "./demodata";
+import lodash from "lodash";
+import Autocomplete from "./Autocomplete";
 
 const useStyles = makeStyles(theme => ({
   vText: {
@@ -84,46 +86,101 @@ function compareFunction(a,b) {
   }
 }
 
+export const Score = Object.freeze({
+  API_LOCAL: {
+    "field": "local_score",
+    "label": "API Local Score",
+  },
+  API_GLOBAL: {
+    "field": "global_score",
+    "label": "API Global Score",
+  },
+  LOCAL_API: {
+    "field": "local_local_score",
+    "label": "Local Score",
+  },
+  LOCAL_DELTA: {
+    "field": "local_delta_score",
+    "label": "StarDelta Score",
+  },
+});
+
+const MISSING_TIMESTAMP = 1e20;
+
+function getStar(userObj, day, star, coalesce) {
+  const value = ((userObj.completion_day_level[day]||{})[star]||{}).get_star_ts;
+  if (value === undefined) {
+    return coalesce;
+  }
+  return value;
+}
+
+function getDelta(userObj, day, coalesce) {
+  const s1=getStar(userObj, day, 1);
+  const s2=getStar(userObj, day, 2);
+  if (s1 === undefined || s2 === undefined) {
+    return coalesce;
+  }
+  return s2-s1;
+}
+
+/**
+ * Add in name for anons and some custom scoring
+ */
+function mixinExtraData(data) {
+  Object.values(data["members"]).forEach( member => {
+    member["name"] = member["name"] || `anon #${member["id"]}`;
+    member[Score.LOCAL_API.field] = 0;
+    member[Score.LOCAL_DELTA.field] = 0;
+  });
+  lodash.range(1, 26).forEach(day => {
+    const members = Object.values(data["members"]);
+    const SCORING_RULES = [
+      [Score.LOCAL_API, (userObj) => getStar(userObj, day, 1, MISSING_TIMESTAMP)],
+      [Score.LOCAL_API, (userObj) => getStar(userObj, day, 2, MISSING_TIMESTAMP)],
+      [Score.LOCAL_DELTA, (userObj) => getDelta(userObj, day, MISSING_TIMESTAMP)],
+    ];
+    SCORING_RULES.forEach(([targetField, order]) => {
+      members.sort((a,b) => compareFunction(order(a), order(b)));
+      members.forEach((member, idx) => {
+        if (order(member) !== MISSING_TIMESTAMP) {
+          member[targetField.field] += members.length - idx;
+        }
+      })
+    });
+  });
+  return data;
+}
+
 function App() {
   const classes = useStyles();
   const [data, setData] = React.useState(null);
   const [sessionId, setSessionId] = React.useState("TBD");
   const [dashId, setDashId] = React.useState("TBD");
   const [orderBy, setOrderBy] = React.useState(null);
+  const [scoreBy, setScoreBy] = React.useState(Score.API_LOCAL);
   const [users, setUsers] = React.useState([]);
   React.useEffect(() => {
     const read = async() => {
       //const resp = getApiData(sessionId, 0/*TBD*/);
       //setData(resp.data);
-      setData(demodata);
+      const data = demodata;
+      setData(mixinExtraData(demodata));
     }
     read();
   }, [sessionId]);
   React.useEffect(() => {
-    //if (orderBy === null)
     if (!data) {
       return;
     }
     let comparator = (a,b) => compareFunction(a.name, b.name);
     if (orderBy !== null) {
-      function getStar(u, d, i) {
-        const value = ((u.completion_day_level[d]||{})[i]||{}).get_star_ts|0;
-        //console.log(u);
-        //console.log([d, i, value])
-        return value;
+      if (orderBy > 0) {
+        comparator = (a, b) => compareFunction(getDelta(a, orderBy, MISSING_TIMESTAMP), getDelta(b, orderBy, MISSING_TIMESTAMP));
+      } else {
+        comparator = (a,b) => compareFunction(-a[scoreBy.field], -b[scoreBy.field]);
       }
-      function getDelta(u, d) {
-        const s1=getStar(u, d, 1);
-        const s2=getStar(u, d, 2);
-        if (s2===0) {
-          return 1e20;
-        }
-        console.log([u,d,s1,s2,s2-s1]);
-        return s2-s1;
-      }
-      comparator = (a,b) => compareFunction(getDelta(a, orderBy), getDelta(b, orderBy));
     }
-    console.log(`sorting by ${orderBy}`);
     setUsers(Object.values(data["members"]).sort(comparator).map(x=>x.id))
   }, [data, orderBy]);
   const handleOrderBy = (idx) => {
@@ -142,16 +199,28 @@ function App() {
           x => Object.keys(x["completion_day_level"]).length
       )
   );
+  const days = [...Array(numDays)].map((_, i) => i+1);
+  const scoreByDelta = scoreBy === Score.LOCAL_DELTA;
 
   return (
       <Box p={2}>
         <Grid container>
-          <Grid item xs={9}>
+          <Grid item xs={6}>
             <TextField
                 fullWidth
                 label="Session ID"
                 value={sessionId}
                 onChange={(e)=>setSessionId(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={3}>
+            <Autocomplete
+                label="Score"
+                options={Object.values(Score)}
+                labelGetter={(x)=>x.label}
+                valueGetter={(x)=>x}
+                value={scoreBy}
+                onChange={setScoreBy}
             />
           </Grid>
           <Grid item xs={3}>
@@ -176,18 +245,33 @@ function App() {
                 </TableCell>
             )}
           </TableRow>
-          {[...Array(numDays)].map((_, i) =>
+          <TableRow>
+            <TableCell onClick={()=>handleOrderBy(0)}>
+              {orderBy===0 ? <b>Pts</b> : 'Pts'}
+            </TableCell>
+            {users.map(uid => {
+              const score = data["members"][uid][scoreBy.field];
+              return (
+                  <TableCell>
+                    {score}
+                  </TableCell>
+              )}
+            )}
+          </TableRow>
+          {days.map(day =>
               <TableRow>
-                <TableCell onClick={()=>handleOrderBy(i+1)}>{i+1}</TableCell>
+                <TableCell onClick={()=>handleOrderBy(day)}>
+                  {orderBy===day ? <b>{day}</b> : day}
+                </TableCell>
                 {users.map(uid => {
-                  const dayData = data["members"][uid]["completion_day_level"][i+1] || {};
+                  const dayData = data["members"][uid]["completion_day_level"][day] || {};
                   const star1ts = (dayData["1"]||{})["get_star_ts"];
                   const star2ts = (dayData["2"]||{})["get_star_ts"];
                   return (
                       <TableCell>
-                        {false&&formatDelta(calcDelta(star1ts, i+1))}
-                        {false&&formatDelta(calcDelta(star2ts, i+1))}
-                        {star1ts && star2ts && formatDelta(star2ts-star1ts)}<br/>
+                        {formatDelta(calcDelta(star1ts, day))}<br/>
+                        {formatDelta(calcDelta(star2ts, day))}<br/>
+                        {scoreByDelta&&star1ts && star2ts && formatDelta(star2ts-star1ts)}
                       </TableCell>
                   )}
                 )}
