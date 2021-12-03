@@ -7,6 +7,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import {demodata} from "./demodata";
 import lodash from "lodash";
 import Autocomplete from "./Autocomplete";
+import {qs_encode} from "./utils";
 
 const useStyles = makeStyles(theme => ({
   vText: {
@@ -238,6 +239,16 @@ function App() {
       setScoreBy(Score[initParams.get('score')]);
     }
   }, []);
+  React.useEffect(() => {
+    // updateUrl on change
+    let qs = {
+      year: year,
+      order: orderBy===undefined?-1:orderBy,
+      dash: dashId,
+      score: scoreBy.key,
+    };
+    window.history.replaceState({}, null, "?" + qs_encode(qs));
+  }, [year, dashId, orderBy, scoreBy]);
   React.useEffect(() => {
     const read = async() => {
       //const resp = getApiData(sessionId, 0/*TBD*/);
