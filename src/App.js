@@ -302,12 +302,22 @@ function App() {
   return (
       <Box p={2}>
         <Grid container>
-          <Grid item xs={6}>
+          <Grid item xs={5}>
             <TextField
                 fullWidth
                 label="Session ID"
                 value={sessionId}
                 onChange={(e)=>setSessionId(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={1}>
+            <Autocomplete
+                label="Year"
+                options={[2015, 2016, 2017, 2018, 2019, 2020, 2021]}
+                labelGetter={(x)=>x+""}
+                valueGetter={(x)=>x}
+                value={year}
+                onChange={setYear}
             />
           </Grid>
           <Grid item xs={3}>
