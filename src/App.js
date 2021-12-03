@@ -1,9 +1,9 @@
 import React from 'react';
 import './App.css';
 import axios from 'axios';
-import {Box, Grid, Table, TextField, TableRow, TableCell} from '@material-ui/core';
+import {Box, Grid, Table, TextField, TableRow, TableCell, TableBody} from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import fetch from 'node-fetch';
+//import fetch from 'node-fetch';
 import {demodata} from "./demodata";
 import lodash from "lodash";
 import Autocomplete from "./Autocomplete";
@@ -12,14 +12,23 @@ const useStyles = makeStyles(theme => ({
   vText: {
     height: 140,
     whiteSpace: 'nowrap',
+    fontWeight: 400,
+    fontSize: '16px',
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
     '& div': {
       transform: 'translate(25px, 51px) rotate(315deg)',
       width: 30,
       '& span': {
-        borderBottom: "1px solid #ccc",
-        padding: "5px 10px",
+        padding: "5px 10px 5px 0px",
       }
     }
+  },
+  vData: { // this replaces the default class, so have to repeat a lot of junk. lame
+    padding: '8px',
+    width: '52px',
+    minWidth: '52px',
+    maxWidth: '52px',
+    overflow: 'hidden',
   },
 }));
 
@@ -233,10 +242,12 @@ function App() {
           </Grid>
         </Grid>
         <Table style={{width:'auto'}}>
+          <TableBody>
           <TableRow>
             <TableCell>AOC</TableCell>
             {users.map(uid =>
                 <TableCell class={classes.vText}>
+                  {/* FIXME: using className (as it should be) breaks the layout, but have no clue why*/}
                   <Box>
                     <span>
                       {data["members"][uid]["name"]}
@@ -268,7 +279,7 @@ function App() {
                   const star1ts = (dayData["1"]||{})["get_star_ts"];
                   const star2ts = (dayData["2"]||{})["get_star_ts"];
                   return (
-                      <TableCell>
+                      <TableCell className={classes.vData}>
                         {formatDelta(calcDelta(star1ts, day))}<br/>
                         {formatDelta(calcDelta(star2ts, day))}<br/>
                         {scoreByDelta&&star1ts && star2ts && formatDelta(star2ts-star1ts)}
@@ -277,6 +288,7 @@ function App() {
                 )}
               </TableRow>
           )}
+          </TableBody>
         </Table>
       </Box>
  );
