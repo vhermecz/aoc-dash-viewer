@@ -7,7 +7,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import {demodata} from "./demodata";
 import lodash from "lodash";
 import Autocomplete from "./Autocomplete";
-import {qs_encode} from "./utils";
+import {isValidSessionId, missingBrowserFeatures, qs_encode} from "./utils";
 
 const useStyles = makeStyles(theme => ({
   vText: {
@@ -238,6 +238,9 @@ function App() {
     if (Object.keys(Score).indexOf(initParams.get('score'))>-1) {
       setScoreBy(Score[initParams.get('score')]);
     }
+    if (localStorage !== undefined) {
+      setSessionId(localStorage.getItem("sessionId") || "");
+    }
   }, []);
   React.useEffect(() => {
     // updateUrl on change
@@ -249,6 +252,9 @@ function App() {
     };
     window.history.replaceState({}, null, "?" + qs_encode(qs));
   }, [year, dashId, orderBy, scoreBy]);
+  React.useEffect(() => {
+    localStorage.setItem("sessionId", sessionId);
+  }, [sessionId]);
   React.useEffect(() => {
     const read = async() => {
       //const resp = getApiData(sessionId, 0/*TBD*/);
@@ -299,10 +305,12 @@ function App() {
   const days = [...Array(numDays)].map((_, i) => i+1);
   const scoreByDelta = scoreBy === Score.LOCAL_DELTA;
 
-  return (
+  return (missingBrowserFeatures().length > 0) ? (
+      "Sorry your browser is lame"
+  ) : (
       <Box p={2}>
         <Grid container>
-          <Grid item xs={5}>
+          <Grid item xs={4}>
             <TextField
                 fullWidth
                 label="Session ID"
@@ -310,6 +318,7 @@ function App() {
                 onChange={(e)=>setSessionId(e.target.value)}
             />
           </Grid>
+          <Grid item xs={1}/>
           <Grid item xs={1}>
             <Autocomplete
                 label="Year"
@@ -342,55 +351,82 @@ function App() {
             <OrderMessage orderBy={orderBy} scoreBy={scoreBy}/>
           </Grid>
         </Grid>
-        <Table style={{width:'auto'}}>
-          <TableBody>
-          <TableRow>
-            <TableCell>AOC</TableCell>
-            {users.map(uid =>
-                <TableCell class={classes.vText}>
-                  {/* FIXME: using className (as it should be) breaks the layout, but have no clue why*/}
-                  <Box>
-                    <span>
-                      {data["members"][uid]["name"]}
-                    </span>
-                  </Box>
-                </TableCell>
-            )}
-          </TableRow>
-          <TableRow>
-            <TableCell onClick={()=>handleOrderBy(0)}>
-              {orderBy===0 ? <b>Pts</b> : 'Pts'}
-            </TableCell>
-            {users.map(uid => {
-              const score = data["members"][uid][scoreBy.field];
-              return (
-                  <TableCell>
-                    {score}
-                  </TableCell>
-              )}
-            )}
-          </TableRow>
-          {days.map(day =>
-              <TableRow>
-                <TableCell onClick={()=>handleOrderBy(day)}>
-                  {orderBy===day ? <b>{day}</b> : day}
-                </TableCell>
-                {users.map(uid => {
-                  const dayData = data["members"][uid]["completion_day_level"][day] || {};
-                  const star1ts = (dayData["1"]||{})["get_star_ts"];
-                  const star2ts = (dayData["2"]||{})["get_star_ts"];
-                  return (
-                      <TableCell className={classes.vData}>
-                        {formatDelta(calcDelta(year, star1ts, day))}<br/>
-                        {formatDelta(calcDelta(year, star2ts, day))}<br/>
-                        {scoreByDelta&&star1ts && star2ts && formatDelta(star2ts-star1ts)}
-                      </TableCell>
+        {
+          (!isValidSessionId(sessionId)) ? (
+              <Box pl={4}>
+                <pre>
+                  <br/>
+                  <br/>
+                  Your sessionId is missing or invalid.<br/>
+                  The sessionId is the 'session' cookie used by the AoC site to identify you.<br/>
+                  To get it:<br/>
+                  - Open developer tools<br/>
+                  - Switch to the network tab<br/>
+                  - Filter for 'advent'<br/>
+                  - Open the https://adventofcode.com/ page<br/>
+                  - Look for the request in the network tab with name 'adventofcode.com' and click on it<br/>
+                  - Look for 'cookie:' in the 'Request Headers' section<br/>
+                  - You will see something like 'session=851de75753d31b6fbcfa00fe44d87dfea738f8d6ed5318bd5e1c2f6b7a9f116203403013d6466cbc2768048ac73e51b8'<br/>
+                  - Copy the hexadecimal number into the sessionId field<br/>
+                  - Be happy now!<br/>
+                  <br/>
+                  NOTE: We cache your sessionId in the browser's localStorage for convenience, so you only have to provide it once. It auto-expires after a month (according to AoC site)
+                </pre>
+              </Box>
+          ) : (
+              <Table style={{width: 'auto'}}>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>AOC</TableCell>
+                    {users.map(uid =>
+                        <TableCell class={classes.vText}>
+                          {/* FIXME: using className (as it should be) breaks the layout, but have no clue why*/}
+                          <Box>
+                          <span>
+                            {data["members"][uid]["name"]}
+                          </span>
+                          </Box>
+                        </TableCell>
+                    )}
+                  </TableRow>
+                  <TableRow>
+                    <TableCell onClick={() => handleOrderBy(0)}>
+                      {orderBy === 0 ? <b>Pts</b> : 'Pts'}
+                    </TableCell>
+                    {users.map(uid => {
+                          const score = data["members"][uid][scoreBy.field];
+                          return (
+                              <TableCell>
+                                {score}
+                              </TableCell>
+                          )
+                        }
+                    )}
+                  </TableRow>
+                  {days.map(day =>
+                      <TableRow>
+                        <TableCell onClick={() => handleOrderBy(day)}>
+                          {orderBy === day ? <b>{day}</b> : day}
+                        </TableCell>
+                        {users.map(uid => {
+                              const dayData = data["members"][uid]["completion_day_level"][day] || {};
+                              const star1ts = (dayData["1"] || {})["get_star_ts"];
+                              const star2ts = (dayData["2"] || {})["get_star_ts"];
+                              return (
+                                  <TableCell className={classes.vData}>
+                                    {formatDelta(calcDelta(year, star1ts, day))}<br/>
+                                    {formatDelta(calcDelta(year, star2ts, day))}<br/>
+                                    {scoreByDelta && star1ts && star2ts && formatDelta(star2ts - star1ts)}
+                                  </TableCell>
+                              )
+                            }
+                        )}
+                      </TableRow>
                   )}
-                )}
-              </TableRow>
-          )}
-          </TableBody>
-        </Table>
+                </TableBody>
+              </Table>
+          )
+        }
       </Box>
  );
 }

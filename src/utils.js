@@ -20,3 +20,15 @@ export function qs_encode(query) {
         fixedEncodeURIComponent(key) + "=" + fixedEncodeURIComponent(value)
     ).join("&")
 }
+
+export function missingBrowserFeatures() {
+    let result = [];
+    if (localStorage === undefined) {
+        result.push("localStorage not supported");
+    }
+    return result;
+}
+
+export function isValidSessionId(sessionId) {
+    return (sessionId||"").match(/^[a-f0-9]{96}$/);
+}
