@@ -49,12 +49,12 @@ function formatDDHHMMSS(delta) {
       (hasHour ? '' : String(sec).padStart(hasMin ? 2 : 1, '0') + 's');
 }
 
-function calcDelta(ts, i) {
+function calcDelta(year, ts, i) {
   if (!ts) {
     return;
   }
-  const FIRST_DAY_TS = 1606798800;
-  return (ts|0) - (FIRST_DAY_TS+86400*(i-1));
+  const first_day_ts = (new Date(year, 11, 1, 6, 0, 0)).getTime()/1000;
+  return (ts|0) - (first_day_ts+86400*(i-1));
 }
 
 function formatDelta(value) {
@@ -169,6 +169,7 @@ function App() {
   const [orderBy, setOrderBy] = React.useState(null);
   const [scoreBy, setScoreBy] = React.useState(Score.API_LOCAL);
   const [users, setUsers] = React.useState([]);
+  const [year, setYear] = React.useState(2020);
   React.useEffect(() => {
     const read = async() => {
       //const resp = getApiData(sessionId, 0/*TBD*/);
@@ -280,8 +281,8 @@ function App() {
                   const star2ts = (dayData["2"]||{})["get_star_ts"];
                   return (
                       <TableCell className={classes.vData}>
-                        {formatDelta(calcDelta(star1ts, day))}<br/>
-                        {formatDelta(calcDelta(star2ts, day))}<br/>
+                        {formatDelta(calcDelta(year, star1ts, day))}<br/>
+                        {formatDelta(calcDelta(year, star2ts, day))}<br/>
                         {scoreByDelta&&star1ts && star2ts && formatDelta(star2ts-star1ts)}
                       </TableCell>
                   )}
