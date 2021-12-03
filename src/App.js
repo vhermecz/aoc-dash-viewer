@@ -9,6 +9,9 @@ import lodash from "lodash";
 import Autocomplete from "./Autocomplete";
 import {isValidSessionId, missingBrowserFeatures, qs_encode} from "./utils";
 
+const CACHE_TIMEOUT_MS = 15*60*1000;
+const EMPTY_DATA = {"members":{}};
+
 const useStyles = makeStyles(theme => ({
   vText: {
     height: 140,
@@ -65,25 +68,52 @@ function formatDelta(value) {
   return formatDDHHMMSS(value);
 }
 
-async function getApiData(sessionId, dashboardId) {
-  // FIXME: Clean up request
-  return fetch(`https://adventofcode.com/2020/leaderboard/private/view/${dashboardId}.json`, {
-    "headers": {
-      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-      "accept-language": "en,en-US;q=0.9,hu;q=0.8,fr;q=0.7",
-      "cache-control": "max-age=0",
-      "sec-fetch-dest": "document",
-      "sec-fetch-mode": "navigate",
-      "sec-fetch-site": "none",
-      "sec-fetch-user": "?1",
-      "upgrade-insecure-requests": "1",
-      "cookie": `session=${sessionId}`
+async function getApiDataReal(year, sessionId, dashboardId) {
+  // return await fetch(`https://vhermecz-aoc-proxy.herokuapp.com/`, {
+  //   "headers": {
+  //     "x-stuff": JSON.stringify({'year':year, 'dash': dashboardId, 'session':sessionId}),
+  //   },
+  //   "body": null,
+  //   "method": "POST",
+  // });
+  return await axios.post('https://vhermecz-aoc-proxy.herokuapp.com/', null, {
+    headers: {
+      "x-stuff": JSON.stringify({'year':year, 'dash': dashboardId, 'session':sessionId}),
     },
-    "referrerPolicy": "strict-origin-when-cross-origin",
-    "body": null,
-    "method": "GET",
-    "mode": "cors"
   });
+}
+
+async function getApiData(year, sessionId, dashboardId) {
+  const key = `restapi-${dashboardId}-${year}`;
+  let data = null;
+  try {
+    data = JSON.parse(localStorage.getItem(`restapi-${dashboardId}-${year}`));
+  } catch (error) {
+    // pass
+  }
+  if (data !== undefined && data !== null && data.timestamp !== undefined && Date.now() < (data.timestamp + CACHE_TIMEOUT_MS)) {
+    console.log("Serving from cache");
+    return data;
+  }
+  try {
+    const res = await getApiDataReal(year, sessionId, dashboardId);
+    console.log(res);
+    data = {
+      data: res.data || EMPTY_DATA,
+      timestamp: Date.now(),
+    }
+    console.log(data);
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.log("ERROR");
+    // FIXME: Display error
+    data = {
+      error: "Connection problem",
+      data: EMPTY_DATA,
+      timestamp: Date.now(),
+    }
+  }
+  return data;
 }
 
 function compareFunction(a,b) {
@@ -152,7 +182,7 @@ function getDelta(userObj, day, coalesce) {
   return s2-s1;
 }
 
-function OrderMessage({orderBy, scoreBy}) {
+function OrderMessage({orderBy, scoreBy, timestamp}) {
   return (
       <Box>
         <b>Scoring by </b>
@@ -167,6 +197,7 @@ function OrderMessage({orderBy, scoreBy}) {
               scoreBy.orderMessage + ` for day #${orderBy}`
           )
         }
+        &nbsp;(Queried at {new Date(timestamp).toString()})
       </Box>
   );
 }
@@ -216,9 +247,10 @@ function isNumber(value, {minValue, maxValue}={}) {
 
 function App() {
   const classes = useStyles();
-  const [data, setData] = React.useState(null);
-  const [sessionId, setSessionId] = React.useState("TBD");
-  const [dashId, setDashId] = React.useState("TBD");
+  const [data, setData] = React.useState(EMPTY_DATA);
+  const [dataTime, setDataTime] = React.useState(null);
+  const [sessionId, setSessionId] = React.useState("");
+  const [dashId, setDashId] = React.useState("");
   const [orderBy, setOrderBy] = React.useState(null);
   const [scoreBy, setScoreBy] = React.useState(Score.API_LOCAL);
   const [users, setUsers] = React.useState([]);
@@ -256,14 +288,14 @@ function App() {
     localStorage.setItem("sessionId", sessionId);
   }, [sessionId]);
   React.useEffect(() => {
+    if (!sessionId || !dashId || !year) return;
     const read = async() => {
-      //const resp = getApiData(sessionId, 0/*TBD*/);
-      //setData(resp.data);
-      const data = demodata;
-      setData(mixinExtraData(demodata));
+      const resp = await getApiData(year, sessionId, dashId);
+      setDataTime(resp.timestamp);
+      setData(mixinExtraData(resp.data));
     }
     read();
-  }, [sessionId]);
+  }, [sessionId, year, dashId]);
   React.useEffect(() => {
     if (!data) {
       return;
@@ -294,10 +326,7 @@ function App() {
     }
   }
 
-  if (!data) {
-    return "No data";
-  }
-  const numDays = Math.max(
+  const numDays = Math.max(0,
       ...Object.values(data["members"]).map(
           x => Object.keys(x["completion_day_level"]).length
       )
@@ -348,7 +377,7 @@ function App() {
             />
           </Grid>
           <Grid item xs={12}>
-            <OrderMessage orderBy={orderBy} scoreBy={scoreBy}/>
+            <OrderMessage orderBy={orderBy} scoreBy={scoreBy} timestamp={dataTime}/>
           </Grid>
         </Grid>
         {
@@ -373,6 +402,8 @@ function App() {
                   NOTE: We cache your sessionId in the browser's localStorage for convenience, so you only have to provide it once. It auto-expires after a month (according to AoC site)
                 </pre>
               </Box>
+          ) : (!data) ? (
+              "No data"
           ) : (
               <Table style={{width: 'auto'}}>
                 <TableBody>
