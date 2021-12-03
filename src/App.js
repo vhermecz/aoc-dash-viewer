@@ -128,6 +128,10 @@ export const Score = Object.freeze({
   },
 });
 
+Object.keys(Score).forEach((key) => {
+  Score[key].key = key;
+});
+
 const MISSING_TIMESTAMP = 1e20;
 
 function getStar(userObj, day, star, coalesce) {
@@ -194,6 +198,21 @@ function mixinExtraData(data) {
   return data;
 }
 
+/** Validate if value is a proper number **/
+function isNumber(value, {minValue, maxValue}={}) {
+  if (((value|0)+"")!==value) {
+    return false;
+  }
+  const num = value|0;
+  if (minValue !== undefined && num < minValue) {
+    return false;
+  }
+  if (maxValue !== undefined && num > maxValue) {
+    return false;
+  }
+  return true;
+}
+
 function App() {
   const classes = useStyles();
   const [data, setData] = React.useState(null);
@@ -203,6 +222,22 @@ function App() {
   const [scoreBy, setScoreBy] = React.useState(Score.API_LOCAL);
   const [users, setUsers] = React.useState([]);
   const [year, setYear] = React.useState(2020);
+  React.useEffect( () => {
+    // updateFromUrl on first load
+    const initParams = (new URL(window.location.href)).searchParams;
+    if (isNumber(initParams.get('year'), {minValue: 2015, maxValue: 2021})) {
+      setYear(initParams.get('year')|0);
+    }
+    if (initParams.get('dash')) {
+      setDashId(initParams.get('dash'));
+    }
+    if (isNumber(initParams.get('order'))) {
+      setOrderBy(initParams.get('order'));
+    }
+    if (Object.keys(Score).indexOf(initParams.get('score'))>-1) {
+      setScoreBy(Score[initParams.get('score')]);
+    }
+  }, []);
   React.useEffect(() => {
     const read = async() => {
       //const resp = getApiData(sessionId, 0/*TBD*/);
