@@ -99,18 +99,32 @@ export const Score = Object.freeze({
   API_LOCAL: {
     "field": "local_score",
     "label": "API Local Score",
+    "scoreMessage": "total local score as returned by the API",
+    "orderMessage": "completion time of 2nd star",
   },
   API_GLOBAL: {
     "field": "global_score",
     "label": "API Global Score",
+    "scoreMessage": "total global score as returned by the API",
+    "orderMessage": "completion time of 2nd star",
   },
   LOCAL_API: {
     "field": "local_local_score",
     "label": "Local Score",
+    "scoreMessage": "total local score as computed from timestamps",
+    "orderMessage": "completion time of 2nd star",
+  },
+  LOCAL_API_FIRST: {
+    "field": "local_local_score_first",
+    "label": "Local Score (1st star only)",
+    "scoreMessage": "total local score as computed from timestamps (only first star counts)",
+    "orderMessage": "completion time of 1st star",
   },
   LOCAL_DELTA: {
     "field": "local_delta_score",
     "label": "StarDelta Score",
+    "scoreMessage": "delta-time between first and second star (for late comers/risers)",
+    "orderMessage": "delta-times between stars",
   },
 });
 
@@ -133,6 +147,25 @@ function getDelta(userObj, day, coalesce) {
   return s2-s1;
 }
 
+function OrderMessage({orderBy, scoreBy}) {
+  return (
+      <Box>
+        <b>Scoring by </b>
+        {scoreBy.scoreMessage}.
+        <b> Ordering by </b>
+        {
+          (orderBy === null) ? (
+              "username"
+          ) : (orderBy === 0) ? (
+              "score"
+          ) : (
+              scoreBy.orderMessage + ` for day #${orderBy}`
+          )
+        }
+      </Box>
+  );
+}
+
 /**
  * Add in name for anons and some custom scoring
  */
@@ -145,7 +178,7 @@ function mixinExtraData(data) {
   lodash.range(1, 26).forEach(day => {
     const members = Object.values(data["members"]);
     const SCORING_RULES = [
-      [Score.LOCAL_API, (userObj) => getStar(userObj, day, 1, MISSING_TIMESTAMP)],
+      [Score.LOCAL_API_FIRST, (userObj) => getStar(userObj, day, 1, MISSING_TIMESTAMP)],
       [Score.LOCAL_API, (userObj) => getStar(userObj, day, 2, MISSING_TIMESTAMP)],
       [Score.LOCAL_DELTA, (userObj) => getDelta(userObj, day, MISSING_TIMESTAMP)],
     ];
@@ -186,13 +219,21 @@ function App() {
     let comparator = (a,b) => compareFunction(a.name, b.name);
     if (orderBy !== null) {
       if (orderBy > 0) {
-        comparator = (a, b) => compareFunction(getDelta(a, orderBy, MISSING_TIMESTAMP), getDelta(b, orderBy, MISSING_TIMESTAMP));
+        if (scoreBy === Score.LOCAL_DELTA) {
+          comparator = (a, b) => compareFunction(getDelta(a, orderBy, MISSING_TIMESTAMP), getDelta(b, orderBy, MISSING_TIMESTAMP));
+        } else if (scoreBy === Score.LOCAL_API_FIRST) {
+          comparator = (a, b) => compareFunction(getStar(a, orderBy, 1, MISSING_TIMESTAMP), getStar(b, orderBy, 1, MISSING_TIMESTAMP));
+        } else if ([Score.LOCAL_API, Score.API_LOCAL, Score.API_GLOBAL].indexOf(scoreBy) > -1) {
+          comparator = (a, b) => compareFunction(getStar(a, orderBy, 2, MISSING_TIMESTAMP), getStar(b, orderBy, 2, MISSING_TIMESTAMP));
+        } else {
+          throw "Fuck yah!";
+        }
       } else {
-        comparator = (a,b) => compareFunction(-a[scoreBy.field], -b[scoreBy.field]);
+        comparator = (a, b) => compareFunction(-a[scoreBy.field], -b[scoreBy.field]);
       }
     }
     setUsers(Object.values(data["members"]).sort(comparator).map(x=>x.id))
-  }, [data, orderBy]);
+  }, [data, orderBy, scoreBy]);
   const handleOrderBy = (idx) => {
     if (idx===orderBy) {
       setOrderBy(null);
@@ -240,6 +281,9 @@ function App() {
                 value={dashId}
                 onChange={(e)=>setDashId(e.target.value)}
             />
+          </Grid>
+          <Grid item xs={12}>
+            <OrderMessage orderBy={orderBy} scoreBy={scoreBy}/>
           </Grid>
         </Grid>
         <Table style={{width:'auto'}}>
