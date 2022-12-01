@@ -30,5 +30,5 @@ export function missingBrowserFeatures() {
 }
 
 export function isValidSessionId(sessionId) {
-    return (sessionId||"").match(/^[a-f0-9]{96}$/);
+    return (sessionId||"").match(/^[a-f0-9]{128}$/);
 }
