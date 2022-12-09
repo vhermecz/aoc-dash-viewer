@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/aoc-dash-viewer/precache-manifest.4b80b264756053362c138bdb2f5ec21e.js"
+  "/aoc-dash-viewer/precache-manifest.50fab9dad6d36e0885112c8f4915eb01.js"
 );
 
 self.addEventListener('message', (event) => {
