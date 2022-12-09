@@ -254,11 +254,11 @@ function App() {
   const [orderBy, setOrderBy] = React.useState(null);
   const [scoreBy, setScoreBy] = React.useState(Score.API_LOCAL);
   const [users, setUsers] = React.useState([]);
-  const [year, setYear] = React.useState(2020);
+  const [year, setYear] = React.useState(2022);
   React.useEffect( () => {
     // updateFromUrl on first load
     const initParams = (new URL(window.location.href)).searchParams;
-    if (isNumber(initParams.get('year'), {minValue: 2015, maxValue: 2021})) {
+    if (isNumber(initParams.get('year'), {minValue: 2015, maxValue: 2022})) {
       setYear(initParams.get('year')|0);
     }
     if (initParams.get('dash')) {
